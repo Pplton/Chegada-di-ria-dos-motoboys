@@ -1,0 +1,44 @@
+import pandas as pd
+import tkinter as tk
+from tkinter import filedialog
+from datetime import datetime
+import os
+
+# Função para determinar o turno
+def determinar_turno(horario_str):
+    try:
+        hora = int(horario_str.split(":")[0])
+        return 'turno1' if hora < 16 else 'turno2'
+    except:
+        return 'indefinido'
+
+# Abrir seletor de arquivo
+root = tk.Tk()
+root.withdraw()
+file_path = filedialog.askopenfilename(title="Selecione a planilha original")
+
+# Carregar a planilha
+df = pd.read_excel(file_path)
+
+# Extrair colunas por índice
+col_data_agendada = pd.to_datetime(df.iloc[:, 22], errors='coerce')  # Coluna W
+col_horario_chegada = pd.to_datetime(df.iloc[:, 26], errors='coerce')  # Coluna AA
+col_empresa = df.iloc[:, 3]  # Coluna D
+col_entregador = df.iloc[:, 13]  # Coluna N
+
+# Criar DataFrame tratado
+df_resumido = pd.DataFrame()
+df_resumido["Data"] = col_data_agendada.dt.strftime("%d/%m/%Y")  # formato DD/MM/AAAA
+df_resumido["Horario agendado"] = col_data_agendada.dt.strftime("%H:%M:%S")
+df_resumido["Horario real de chegada"] = col_horario_chegada.dt.strftime("%H:%M:%S")
+df_resumido["Empresa"] = col_empresa
+df_resumido["Entregador"] = col_entregador
+df_resumido["Pontualidade"] = col_horario_chegada.apply(lambda x: "chegou" if pd.notna(x) else "não chegou")
+df_resumido["turno"] = col_data_agendada.dt.strftime("%H:%M:%S").apply(determinar_turno)
+
+# Salvar planilha
+output_path = os.path.join(os.path.dirname(file_path), "Resumo_Tratado.xlsx")
+df_resumido.to_excel(output_path, index=False)
+
+# Abrir automaticamente
+os.startfile(output_path)
