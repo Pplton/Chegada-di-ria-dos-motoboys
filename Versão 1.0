@@ -7,10 +7,19 @@ import os
 # Função para determinar o turno
 def determinar_turno(horario_str):
     try:
+        if pd.isna(horario_str) or horario_str == 'Hora inválida':
+            return 'indefinido'
         hora = int(horario_str.split(":")[0])
         return 'turno1' if hora < 16 else 'turno2'
     except:
         return 'indefinido'
+
+# Função para tratar datas inválidas
+def formatar_data(data):
+    try:
+        return pd.to_datetime(data, dayfirst=True, errors='coerce')
+    except:
+        return pd.NaT
 
 # Abrir seletor de arquivo
 root = tk.Tk()
@@ -20,21 +29,25 @@ file_path = filedialog.askopenfilename(title="Selecione a planilha original")
 # Carregar a planilha
 df = pd.read_excel(file_path)
 
-# Extrair colunas por índice
-col_data_agendada = pd.to_datetime(df.iloc[:, 22], errors='coerce')  # Coluna W
-col_horario_chegada = pd.to_datetime(df.iloc[:, 26], errors='coerce')  # Coluna AA
-col_empresa = df.iloc[:, 3]  # Coluna D
-col_entregador = df.iloc[:, 13]  # Coluna N
+# Extrair colunas por índice com tratamento robusto
+col_data_agendada = df.iloc[:, 22].apply(formatar_data)  # Coluna W
+col_horario_chegada = df.iloc[:, 26].apply(formatar_data)  # Coluna AA
+col_empresa = df.iloc[:, 3].fillna('Empresa não informada')  # Coluna D
+col_entregador = df.iloc[:, 13].fillna('Entregador não informado')  # Coluna N
 
 # Criar DataFrame tratado
 df_resumido = pd.DataFrame()
-df_resumido["Data"] = col_data_agendada.dt.strftime("%d/%m/%Y")  # formato DD/MM/AAAA
-df_resumido["Horario agendado"] = col_data_agendada.dt.strftime("%H:%M:%S")
-df_resumido["Horario real de chegada"] = col_horario_chegada.dt.strftime("%H:%M:%S")
+df_resumido["Data"] = col_data_agendada.dt.strftime("%d/%m/%Y").replace('NaT', 'Data inválida')
+df_resumido["Horario agendado"] = col_data_agendada.dt.strftime("%H:%M:%S").replace('NaT', 'Hora inválida')
+df_resumido["Horario real de chegada"] = col_horario_chegada.dt.strftime("%H:%M:%S").replace('NaT', 'Hora não registrada')
 df_resumido["Empresa"] = col_empresa
 df_resumido["Entregador"] = col_entregador
 df_resumido["Pontualidade"] = col_horario_chegada.apply(lambda x: "chegou" if pd.notna(x) else "não chegou")
-df_resumido["turno"] = col_data_agendada.dt.strftime("%H:%M:%S").apply(determinar_turno)
+df_resumido["turno"] = df_resumido["Horario agendado"].apply(determinar_turno)
+
+# Tratar casos onde a data é inválida mas o horário foi registrado
+mask = (df_resumido["Data"] == 'Data inválida') & (df_resumido["Horario real de chegada"] != 'Hora não registrada')
+df_resumido.loc[mask, "Pontualidade"] = "chegou"
 
 # Salvar planilha
 output_path = os.path.join(os.path.dirname(file_path), "Resumo_Tratado.xlsx")
