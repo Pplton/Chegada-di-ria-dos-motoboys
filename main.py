@@ -84,8 +84,8 @@ if not os.path.isfile(file_path):
 df = pd.read_excel(xlsx_path)
 
 # Extrair colunas por índice com tratamento
-col_data_agendada = df.iloc[:, 22].apply(formatar_data)  # Coluna W
-col_horario_chegada = df.iloc[:, 26].apply(formatar_data)  # Coluna AA
+col_data_agendada = df.iloc[:, 23].apply(formatar_data)  # Coluna W
+col_horario_chegada = df.iloc[:, 27].apply(formatar_data)  # Coluna AA
 col_empresa = df.iloc[:, 3].fillna('Empresa não informada')  # Coluna D
 col_entregador = df.iloc[:, 13].fillna('Entregador não informado')  # Coluna N
 
